@@ -1,0 +1,18 @@
+[
+  {"id":"00000001","faction":"Highlanders","name":"Highland's Stable Boy","unitType":"Warrior","level":"1","branch":null},
+  {"id":"00000002","faction":"Highlanders","name":"Highland's Stable Master","unitType":"Warrior","level":"2","branch":null},
+  {"id":"00000003","faction":"Highlanders","name":"Highland's Horseman","unitType":"Warrior","level":"3","branch":null},
+  {"id":"00000004","faction":"Highlanders","name":"Highland's Master Horseman","unitType":"Warrior","level":"4","branch":null},
+  {"id":"00000005","faction":"Highlanders","name":"Highland's Student","unitType":"Mage","level":"1","branch":null},
+  {"id":"00000006","faction":"Highlanders","name":"Highland's Academic","unitType":"Mage","level":"2","branch":null},
+  {"id":"00000007","faction":"Highlanders","name":"Highland's Professor","unitType":"Mage","level":"3","branch":null},
+  {"id":"00000008","faction":"Highlanders","name":"Highland's Scholar","unitType":"Healer","level":"1","branch":"Root"},
+  {"id":"00000009","faction":"Highlanders","name":"Highland's Medic","unitType":"Healer","level":"2","branch":"A"},
+  {"id":"0000000A","faction":"Highlanders","name":"Highland's Surgeon","unitType":"Healer","level":"3","branch":"A"},
+  {"id":"0000000B","faction":"Highlanders","name":"Highland's Priest","unitType":"Healer","level":"2","branch":"B"},
+  {"id":"0000000C","faction":"Highlanders","name":"Highland's Pope","unitType":"Healer","level":"3","branch":"B"},
+  {"id":"0000000D","faction":"Highlanders","name":"Highland's Slinger","unitType":"Sharpshooter","level":"1","branch":null},
+  {"id":"0000000E","faction":"Highlanders","name":"Highland's Archer","unitType":"Sharpshooter","level":"2","branch":null},
+  {"id":"0000000F","faction":"Highlanders","name":"Highland's Hitman","unitType":"Sharpshooter","level":"3","branch":"A"},
+  {"id":"00000010","faction":"Highlanders","name":"Highland's Spy","unitType":"Sharpshooter","level":"3","branch":"B"}
+]
