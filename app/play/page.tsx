@@ -2,7 +2,132 @@
 
 import React from 'react';
 
-/* ========= Tiny responsive helper ========= */
+/** ===========================
+ *  Config (basePath-aware)
+ *  =========================== */
+const BASE = '/agb'; // must match next.config.ts basePath
+const API_CARDS = `${BASE}/api/cards?format=object`;
+
+// ensures ".png" (lowercase) and a clean id in case of stray spaces
+function imgUrlFor(id: string) {
+  const clean = String(id ?? '').trim();
+  return `${BASE}/images/${encodeURIComponent(clean)}.png`;
+}
+const IMG_BACK = `${BASE}/images/card-back.png`;
+
+/** ===========================
+ *  Types
+ *  =========================== */
+type Faction = 'Highlanders' | 'Keepers';
+type Rarity = 'Common' | 'Uncommon' | 'Rare' | 'Epic' | 'Legendary' | 'Mythic';
+type HeroType = 'Tank' | 'DPS' | 'Support' | 'Hybrid' | 'Specialist' | string;
+type AttackType = 'Physical' | 'Magical' | 'Mental' | 'Divine' | 'Poison' | 'Elemental' | string;
+
+type StatKey =
+  | 'hp' | 'prana' | 'focus' | 'stamina' | 'strength'
+  | 'intelligence' | 'defense' | 'speed' | 'power';
+
+const STAT_LABELS: Record<StatKey, string> = {
+  hp: 'HP', prana: 'Prana', focus: 'Focus', stamina: 'Stamina',
+  strength: 'Strength', intelligence: 'Intelligence', defense: 'Defense',
+  speed: 'Speed', power: 'Power',
+};
+
+type CardStats = Record<StatKey, number>;
+
+interface Card {
+  id: string;
+  name: string;
+  faction: Faction;
+  class: string;
+  rarity: Rarity;
+  heroType: HeroType;
+  attackType: AttackType;
+  image?: string;
+  stats: CardStats;
+}
+
+type Side = 'player' | 'ai';
+type Phase = 'awaitingStart' | 'awaitingChoice' | 'revealing' | 'roundResolved' | 'gameOver';
+
+interface DeckState { deck: Card[]; discard: Card[]; active?: Card; }
+
+/** ===========================
+ *  Helpers
+ *  =========================== */
+function shuffle<T>(arr: T[]): T[] {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = (Math.random() * (i + 1)) | 0;
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function splitDeck(all: Card[]): { player: Card[]; ai: Card[] } {
+  const s = shuffle(all);
+  const mid = Math.floor(s.length / 2);
+  return { player: s.slice(0, mid), ai: s.slice(mid) };
+}
+function compareByStat(stat: StatKey, a: Card, b: Card): 1 | -1 | 0 {
+  const av = a.stats[stat] ?? 0;
+  const bv = b.stats[stat] ?? 0;
+  return av > bv ? 1 : av < bv ? -1 : 0;
+}
+function aiPickStat(aiCard: Card): StatKey {
+  return (Object.entries(aiCard.stats) as [StatKey, number][])
+    .sort((a, b) => b[1] - a[1])[0][0];
+}
+function drawNextRound(player: DeckState, ai: DeckState) {
+  const p: DeckState = { deck: player.deck.slice(), discard: player.discard.slice(), active: undefined };
+  const e: DeckState = { deck: ai.deck.slice(), discard: ai.discard.slice(), active: undefined };
+
+  if (p.deck.length === 0 && p.discard.length > 0) { p.deck = shuffle(p.discard); p.discard = []; }
+  if (e.deck.length === 0 && e.discard.length > 0) { e.deck = shuffle(e.discard); e.discard = []; }
+
+  const pEmpty = p.deck.length === 0 && p.discard.length === 0;
+  const eEmpty = e.deck.length === 0 && e.discard.length === 0;
+  if (pEmpty || eEmpty) return null;
+
+  p.active = p.deck.shift();
+  e.active = e.deck.shift();
+  if (!p.active || !e.active) return null;
+
+  return { player: p, ai: e };
+}
+
+// loot-aware resolve (non-committing; we commit on "Continue")
+function resolveWithLoot(
+  chosenStat: StatKey, player: DeckState, ai: DeckState, loot: Card[],
+): { winner: Side | 'tie'; player: DeckState; ai: DeckState; loot: Card[] } {
+  if (!player.active || !ai.active) return { winner: 'tie', player, ai, loot };
+  const cmp = compareByStat(chosenStat, player.active, ai.active);
+  if (cmp === 0) {
+    return {
+      winner: 'tie',
+      player: { deck: player.deck.slice(), discard: player.discard.slice(), active: player.active },
+      ai: { deck: ai.deck.slice(), discard: ai.discard.slice(), active: ai.active },
+      loot: [...loot, player.active, ai.active],
+    };
+  }
+  if (cmp > 0) {
+    return {
+      winner: 'player',
+      player: { deck: player.deck.slice(), discard: [...player.discard], active: player.active },
+      ai: { deck: ai.deck.slice(), discard: ai.discard.slice(), active: ai.active },
+      loot: loot.slice(),
+    };
+  }
+  return {
+    winner: 'ai',
+    player: { deck: player.deck.slice(), discard: player.discard.slice(), active: player.active },
+    ai: { deck: ai.deck.slice(), discard: [...ai.discard], active: ai.active },
+    loot: loot.slice(),
+  };
+}
+
+/** ===========================
+ *  Tiny responsive helper
+ *  =========================== */
 function useIsNarrow(breakpoint = 768) {
   const [isNarrow, setIsNarrow] = React.useState(false);
   React.useEffect(() => {
@@ -14,432 +139,632 @@ function useIsNarrow(breakpoint = 768) {
   return isNarrow;
 }
 
-/* ========= Minimal notifications ========= */
-type Notice = { id: number; text: string };
-function useNotifications(max = 50, toastMs = 1800) {
-  const [log, setLog] = React.useState<Notice[]>([]);
-  const [toast, setToast] = React.useState<Notice | null>(null);
-  const idRef = React.useRef(1);
+/** ===========================
+ *  Page
+ *  =========================== */
+type CardsResponseArray = Card[];
+type CardsResponseObject = { deck?: Card[]; total?: number } & Record<string, unknown>;
 
-  const push = React.useCallback(
-    (text: string, showToast = true) => {
-      const id = idRef.current++;
-      const n = { id, text };
-      setLog((prev) => {
-        const next = [...prev, n];
-        return next.length > max ? next.slice(next.length - max) : next;
-      });
-      if (showToast) {
-        setToast(n);
-        const t = setTimeout(() => setToast((cur) => (cur?.id === id ? null : cur)), toastMs);
-        return () => clearTimeout(t);
-      }
-      return () => {};
-    },
-    [max, toastMs]
-  );
-
-  return { log, toast, push };
-}
-
-/* ========= Inline styles ========= */
-const styles = {
-  page: {
-    width: '100%',
-    minHeight: '100dvh',
-    background: '#0a0f16',
-    color: '#dce6ff',
-    boxSizing: 'border-box' as const,
-  },
-
-  topBar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    padding: '12px 16px',
-    borderBottom: '1px solid #1f2937',
-    position: 'sticky' as const,
-    top: 0,
-    background: '#0a0f16',
-    zIndex: 10,
-  },
-
-  title: { fontSize: 16, opacity: 0.9 },
-
-  startBtn: {
-    padding: '10px 14px',
-    borderRadius: 10,
-    border: '1px solid #1f2937',
-    background: '#10223f',
-    color: '#e5edff',
-    cursor: 'pointer',
-    fontWeight: 600,
-  },
-
-  board: {
-    display: 'flex',
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    gap: 16,
-    width: '100%',
-    maxWidth: 1400,
-    margin: '0 auto',
-    padding: 12,
-    boxSizing: 'border-box' as const,
-    overflowX: 'hidden',
-  },
-
-  cardSlot: {
-    padding: 8,
-    boxSizing: 'border-box' as const,
-  },
-
-  card: {
-    height: 'auto',
-    width: '100%',
-    maxWidth: 520,
-    margin: '0 auto',
-    background: '#0b1220',
-    border: '1px solid #1f2937',
-    borderRadius: 12,
-    padding: 12,
-    boxSizing: 'border-box' as const,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 12,
-  },
-
-  imageBox: {
-    background: '#0f172a',
-    border: '1px solid #1f2937',
-    borderRadius: 10,
-    overflow: 'hidden',
-    position: 'relative' as const,
-    flex: '0 0 auto',
-    margin: '0 auto',
-    transition: 'box-shadow 120ms ease',
-  },
-
-  imageBoxActive: {
-    boxShadow: '0 0 0 2px #3b82f6 inset',
-  },
-
-  img: {
-    display: 'block',
-    width: '100%',
-    height: '100%',
-    objectFit: 'contain' as const,
-    objectPosition: 'center',
-    userSelect: 'none' as const,
-    pointerEvents: 'none' as const,
-  },
-
-  statGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gridTemplateRows: 'repeat(3, 1fr)',
-    gap: 8,
-    borderTop: '1px solid #1f2937',
-    paddingTop: 8,
-  },
-
-  statCell: {
-    minWidth: 0,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap' as const,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 6,
-    border: '1px solid #1f2937',
-    borderRadius: 8,
-    padding: '8px 10px',
-    background: '#0d1627',
-    cursor: 'pointer',
-    outline: 'none',
-    transition: 'transform 80ms ease, box-shadow 120ms ease, background 120ms ease',
-    fontSize: 14,
-    lineHeight: 1.2,
-  },
-
-  statCellHover: { background: '#11203a' },
-  statCellActive: { boxShadow: '0 0 0 2px #3b82f6 inset', background: '#10223f', transform: 'translateY(-1px)' },
-
-  statName: { opacity: 0.85, fontSize: 12 },
-  statValue: { fontWeight: 700 },
-
-  logPanel: {
-    width: '100%',
-    maxWidth: 1000,
-    margin: '12px auto 24px',
-    padding: 12,
-    background: '#0b1220',
-    border: '1px solid #1f2937',
-    borderRadius: 10,
-    boxSizing: 'border-box' as const,
-  },
-
-  logTitle: { fontSize: 13, opacity: 0.8, marginBottom: 8 },
-  logList: { display: 'grid', gap: 6, fontSize: 13 },
-
-  toast: {
-    position: 'fixed' as const,
-    bottom: 14,
-    left: '50%',
-    transform: 'translateX(-50%)',
-    background: '#10223f',
-    border: '1px solid #26435f',
-    color: '#e6efff',
-    padding: '10px 14px',
-    borderRadius: 10,
-    boxShadow: '0 6px 20px rgba(0,0,0,0.35)',
-    zIndex: 50,
-    pointerEvents: 'none' as const,
-    transition: 'opacity 180ms ease',
-    opacity: 1,
-    maxWidth: '92vw',
-  },
-  toastHidden: { opacity: 0 },
-} as const;
-
-/* ========= Types & demo data ========= */
-type Stat = { name: string; value: number };
-
-const LEFT_STATS: Stat[] = [
-  { name: 'Strength', value: 12 },
-  { name: 'Stamina', value: 8 },
-  { name: 'Prana', value: 14 },
-  { name: 'Focus', value: 10 },
-  { name: 'Agility', value: 7 },
-  { name: 'Luck', value: 9 },
-  { name: 'Wisdom', value: 11 },
-  { name: 'Spirit', value: 13 },
-  { name: 'Armor', value: 6 },
-];
-
-const RIGHT_STATS: Stat[] = [
-  { name: 'Strength', value: 9 },
-  { name: 'Stamina', value: 10 },
-  { name: 'Prana', value: 12 },
-  { name: 'Focus', value: 8 },
-  { name: 'Agility', value: 11 },
-  { name: 'Luck', value: 6 },
-  { name: 'Wisdom', value: 14 },
-  { name: 'Spirit', value: 7 },
-  { name: 'Armor', value: 10 },
-];
-
-/* ========= Small widgets ========= */
-function StatCell({
-  stat,
-  active,
-  onSelect,
-}: {
-  stat: Stat;
-  active: boolean;
-  onSelect: () => void;
-}) {
-  const [hover, setHover] = React.useState(false);
-  return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-pressed={active}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      onClick={onSelect}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onSelect();
-        }
-      }}
-      style={{
-        ...styles.statCell,
-        ...(hover ? styles.statCellHover : null),
-        ...(active ? styles.statCellActive : null),
-      }}
-      title={`${stat.name}: ${stat.value}`}
-    >
-      <span style={styles.statName}>{stat.name}</span>
-      <span style={styles.statValue}>{stat.value}</span>
-    </div>
-  );
-}
-
-function NineStats({
-  stats,
-  selectedIndex,
-  onSelectIndex,
-}: {
-  stats: Stat[];
-  selectedIndex: number | null;
-  onSelectIndex: (i: number) => void;
-}) {
-  return (
-    <>
-      {stats.map((stat, i) => (
-        <StatCell
-          key={i}
-          stat={stat}
-          active={selectedIndex === i}
-          onSelect={() => onSelectIndex(i)}
-        />
-      ))}
-    </>
-  );
-}
-
-/* ========= Page Component ========= */
 export default function PlayPage() {
   const isNarrow = useIsNarrow(768);
-  const { log, toast, push } = useNotifications();
 
-  // Fixed, predictable sizes (4:3 image; stable grid)
-  const IMG_W = isNarrow ? 360 : 420; // px
-  const IMG_H = isNarrow ? 270 : 315; // px
-  const GRID_H = isNarrow ? 200 : 210; // px
+  // Fixed, predictable sizes (no layout shift)
+  const IMG_W = isNarrow ? 360 : 420;   // 4:3 image box width
+  const IMG_H = isNarrow ? 270 : 315;   // 4:3 image box height
+  const GRID_H = isNarrow ? 200 : 210;  // fixed total height for stat grid
 
-  // Minimal “game” state
-  const [gameStarted, setGameStarted] = React.useState(false);
-  const [activeCard, setActiveCard] = React.useState<0 | 1 | null>(null);
-  const [selectedLeft, setSelectedLeft] = React.useState<number | null>(null);
-  const [selectedRight, setSelectedRight] = React.useState<number | null>(null);
+  // prevent “game over” flash during first fetch
+  const [isBooting, setIsBooting] = React.useState(true);
 
-  const handleStart = () => {
-    setGameStarted(true);
-    setActiveCard(0);
-    setSelectedLeft(null);
-    setSelectedRight(null);
-    push('Game started. Left card is active.');
-  };
+  const [allCards, setAllCards] = React.useState<Card[]>([]);
+  const [player, setPlayer] = React.useState<DeckState>({ deck: [], discard: [] });
+  const [ai, setAi] = React.useState<DeckState>({ deck: [], discard: [] });
+  const [loot, setLoot] = React.useState<Card[]>([]);
 
-  const onCardFocus = (side: 0 | 1) => {
-    setActiveCard(side);
-    push(`${side === 0 ? 'Left' : 'Right'} card focused`);
-  };
+  const [phase, setPhase] = React.useState<Phase>('awaitingStart');
+  const [turn, setTurn] = React.useState<Side>('player');
+  const [chosenStat, setChosenStat] = React.useState<StatKey | null>(null);
+  const [roundWinner, setRoundWinner] = React.useState<Side | 'tie' | null>(null);
 
-  const onStatSelect = (side: 0 | 1, i: number) => {
-    const stats = side === 0 ? LEFT_STATS : RIGHT_STATS;
-    const chosen = stats[i];
-    if (side === 0) setSelectedLeft(i);
-    else setSelectedRight(i);
-    push(`${side === 0 ? 'Left' : 'Right'} selected ${chosen.name}: ${chosen.value}`);
-  };
+  const [snapPlayerCard, setSnapPlayerCard] = React.useState<Card | null>(null);
+  const [snapAiCard, setSnapAiCard] = React.useState<Card | null>(null);
 
+  const [pending, setPending] = React.useState<{
+    player: DeckState; ai: DeckState; loot: Card[]; winner: Side | 'tie';
+  } | null>(null);
+
+  const [showRoundPanel, setShowRoundPanel] = React.useState(false);
+
+  React.useEffect(() => { void bootstrap(); }, []);
+
+  async function bootstrap() {
+    try {
+      const res = await fetch(API_CARDS, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Failed to fetch ${API_CARDS}`);
+      const raw: CardsResponseArray | CardsResponseObject = await res.json();
+      const deck = Array.isArray(raw) ? raw : (raw.deck ?? []);
+
+      if (!deck || deck.length === 0) {
+        console.error('Empty deck from cards API:', raw);
+        setAllCards([]); setPlayer({ deck: [], discard: [] }); setAi({ deck: [], discard: [] });
+        setLoot([]); setPhase('gameOver'); setShowRoundPanel(true);
+        setChosenStat(null); setRoundWinner(null);
+        setSnapPlayerCard(null); setSnapAiCard(null);
+        setPending(null);
+        return;
+      }
+
+      const normalized = deck.map((c) => ({
+        ...c,
+        image: c.image || imgUrlFor(c.id),
+      }));
+
+      setAllCards(normalized);
+      const { player: pDeck, ai: aDeck } = splitDeck(normalized);
+      setPlayer({ deck: pDeck, discard: [] });
+      setAi({ deck: aDeck, discard: [] });
+      setLoot([]);
+      setPhase('awaitingStart'); setTurn('player');
+      setChosenStat(null); setRoundWinner(null);
+      setSnapPlayerCard(null); setSnapAiCard(null);
+      setPending(null); setShowRoundPanel(false);
+    } catch (err) {
+      console.error(err);
+      setPhase('gameOver'); setShowRoundPanel(true);
+    } finally {
+      setIsBooting(false);
+    }
+  }
+
+  function startRoundOnce() {
+    if (phase !== 'awaitingStart') return;
+    const drawn = drawNextRound(player, ai);
+    if (!drawn) { setPhase('gameOver'); setShowRoundPanel(true); return; }
+    setPlayer(drawn.player); setAi(drawn.ai);
+    setPhase('awaitingChoice');
+  }
+
+  React.useEffect(() => {
+    if (phase === 'awaitingChoice' && turn === 'ai' && ai.active) {
+      const pick = aiPickStat(ai.active);
+      const t = setTimeout(() => handlePick(pick), 600);
+      return () => clearTimeout(t);
+    }
+  }, [phase, turn, ai.active]);
+
+  function handlePick(stat: StatKey) {
+    if (phase !== 'awaitingChoice') return;
+    setChosenStat(stat);
+    setPhase('revealing');
+
+    setSnapPlayerCard(player.active || null);
+    setSnapAiCard(ai.active || null);
+
+    const computed = resolveWithLoot(stat, player, ai, loot);
+
+    const committed = (() => {
+      if (!player.active || !ai.active) return { player, ai, loot };
+      if (computed.winner === 'tie') {
+        const newLoot = [...loot, player.active, ai.active];
+        return {
+          player: { deck: player.deck.slice(), discard: player.discard.slice(), active: player.active },
+          ai: { deck: ai.deck.slice(), discard: ai.discard.slice(), active: ai.active },
+          loot: newLoot,
+        };
+      }
+      if (computed.winner === 'player') {
+        return {
+          player: { deck: player.deck.slice(), discard: [...player.discard, player.active, ai.active, ...loot], active: player.active },
+          ai: { deck: ai.deck.slice(), discard: ai.discard.slice(), active: ai.active },
+          loot: [],
+        };
+      }
+      return {
+        player: { deck: player.deck.slice(), discard: player.discard.slice(), active: player.active },
+        ai: { deck: ai.deck.slice(), discard: [...ai.discard, ai.active, player.active, ...loot], active: ai.active },
+        loot: [],
+      };
+    })();
+
+    setPending({ ...committed, winner: computed.winner });
+    setRoundWinner(computed.winner);
+
+    setShowRoundPanel(true);
+    setPhase('roundResolved');
+  }
+
+  function commitAndDrawNext() {
+    if (!pending) return;
+
+    const afterPlayer: DeckState = { deck: pending.player.deck.slice(), discard: pending.player.discard.slice(), active: undefined };
+    const afterAi: DeckState = { deck: pending.ai.deck.slice(), discard: pending.ai.discard.slice(), active: undefined };
+    const afterLoot = pending.loot.slice();
+
+    const pEmpty = afterPlayer.deck.length === 0 && afterPlayer.discard.length === 0;
+    const eEmpty = afterAi.deck.length === 0 && afterAi.discard.length === 0;
+
+    if (pEmpty || eEmpty) {
+      setPlayer(afterPlayer); setAi(afterAi); setLoot(afterLoot);
+      setPhase('gameOver'); setShowRoundPanel(true);
+      setPending(null);
+      return;
+    }
+
+    const drawn = drawNextRound(afterPlayer, afterAi);
+    if (!drawn) {
+      setPlayer(afterPlayer); setAi(afterAi); setLoot(afterLoot);
+      setPhase('gameOver'); setShowRoundPanel(true);
+      setPending(null);
+      return;
+    }
+
+    setPlayer(drawn.player);
+    setAi(drawn.ai);
+    setLoot(afterLoot);
+
+    const nextTurn = pending.winner === 'tie' ? turn : (pending.winner as Side);
+    setTurn(nextTurn);
+
+    setPending(null);
+    setChosenStat(null);
+    setRoundWinner(null);
+    setSnapPlayerCard(null);
+    setSnapAiCard(null);
+    setShowRoundPanel(false);
+    setPhase('awaitingChoice');
+  }
+
+  function newGame() { void bootstrap(); }
+
+  const pActive = player.active;
+  const aActive = ai.active;
+
+  const showAICardBack = phase === 'awaitingChoice' && turn === 'player';
+  const ORDER: StatKey[] = ['hp','prana','focus','stamina','strength','intelligence','defense','speed','power'];
+
+  // During boot, render the frame only (no overlays, no “game over”)
   return (
-    <div style={styles.page}>
-      {/* Top bar */}
-      <div style={styles.topBar}>
-        <div style={styles.title}>Amica Guardian Battles — Play</div>
-        <button
-          type="button"
-          onClick={handleStart}
-          style={styles.startBtn}
-          aria-pressed={gameStarted}
-          title="Start / restart"
-        >
-          {gameStarted ? 'Restart' : 'Start'}
-        </button>
+    <main style={styles.page}>
+      <header style={styles.header}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: 20 }}>Amica Guardian Battles — MVP</h1>
+        </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          {!isBooting && phase === 'awaitingStart' && <button style={styles.primary} onClick={startRoundOnce}>Start Round</button>}
+          {!isBooting && phase === 'gameOver' && <button style={styles.primary} onClick={newGame}>New Game</button>}
+        </div>
+      </header>
+
+      <div style={styles.statusRow}>
+        <span style={styles.pill}>You — Deck: <strong>{player.deck.length}</strong></span>
+        <span style={styles.pill}>Discard: <strong>{player.discard.length}</strong></span>
+        <span style={{ opacity: 0.65 }}>|</span>
+        <span style={styles.pill}>Loot: <strong>{loot.length}</strong></span>
+        <span style={{ opacity: 0.65 }}>|</span>
+        <span style={styles.pill}>AI — Deck: <strong>{ai.deck.length}</strong></span>
+        <span style={styles.pill}>Discard: <strong>{ai.discard.length}</strong></span>
       </div>
 
-      {/* Board */}
-      <div
+      {/* Board now stacks on mobile and scrolls the page normally */}
+      <section
         style={{
           ...styles.board,
           flexDirection: isNarrow ? 'column' : 'row',
         }}
       >
-        {/* Left card */}
         <div
           style={{
             ...styles.cardSlot,
-            width: isNarrow ? '100%' : '50%',
+            width: isNarrow ? '100%' : 'clamp(260px, 38vw, 420px)',
           }}
         >
-          <div style={styles.card}>
-            <div
-              onClick={() => onCardFocus(0)}
-              style={{
-                ...styles.imageBox,
-                ...(activeCard === 0 ? styles.imageBoxActive : null),
-                width: IMG_W,
-                height: IMG_H,
-              }}
-            >
-              <img
-                src="/agb/images/0000001B.png"
-                alt="Card art"
-                style={styles.img}
-              />
-            </div>
-
-            <div style={{ ...styles.statGrid, height: GRID_H }}>
-              <NineStats
-                stats={LEFT_STATS}
-                selectedIndex={selectedLeft}
-                onSelectIndex={(i) => onStatSelect(0, i)}
-              />
-            </div>
-          </div>
+          <Card
+            owner="player"
+            card={pActive}
+            selectable={!isBooting && phase === 'awaitingChoice' && turn === 'player'}
+            onSelect={(s) => handlePick(s)}
+            highlight={chosenStat ?? undefined}
+            showBack={false}
+            order={ORDER}
+            imgW={IMG_W}
+            imgH={IMG_H}
+            gridH={GRID_H}
+          />
         </div>
 
-        {/* Right card */}
         <div
           style={{
             ...styles.cardSlot,
-            width: isNarrow ? '100%' : '50%',
+            width: isNarrow ? '100%' : 'clamp(260px, 38vw, 420px)',
           }}
         >
-          <div style={styles.card}>
-            <div
-              onClick={() => onCardFocus(1)}
-              style={{
-                ...styles.imageBox,
-                ...(activeCard === 1 ? styles.imageBoxActive : null),
-                width: IMG_W,
-                height: IMG_H,
-              }}
-            >
-              <img
-                src="/agb/images/0000001C.png"
-                alt="Card art"
-                style={styles.img}
-              />
-            </div>
+          <Card
+            owner="ai"
+            card={aActive}
+            selectable={false}
+            highlight={chosenStat ?? undefined}
+            showBack={!isBooting && showAICardBack}
+            order={ORDER}
+            imgW={IMG_W}
+            imgH={IMG_H}
+            gridH={GRID_H}
+          />
+        </div>
+      </section>
 
-            <div style={{ ...styles.statGrid, height: GRID_H }}>
-              <NineStats
-                stats={RIGHT_STATS}
-                selectedIndex={selectedRight}
-                onSelectIndex={(i) => onStatSelect(1, i)}
-              />
+      {!isBooting && showRoundPanel && (
+        <div style={styles.floatWrap} aria-live="polite">
+          <div style={styles.floatPanel}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: 16 }}>
+              {phase === 'gameOver' ? 'Game Over' : 'Round Result'}
+            </h3>
+
+            {phase === 'gameOver' ? (
+              <p style={{ marginBottom: 12 }}>
+                {player.deck.length + player.discard.length === 0
+                  ? 'You ran out of cards. AI wins!'
+                  : ai.deck.length + ai.discard.length === 0
+                  ? 'AI ran out of cards. You win!'
+                  : 'One side cannot continue. Match ended.'}
+              </p>
+            ) : (
+              <div style={{ display: 'grid', gap: 6 }}>
+                <Row label="Stat" value={chosenStat ? STAT_LABELS[chosenStat] : '—'} />
+                <Row label="Your Value" value={chosenStat && snapPlayerCard ? String(snapPlayerCard.stats[chosenStat]) : '—'} />
+                <Row label="AI Value" value={chosenStat && snapAiCard ? String(snapAiCard.stats[chosenStat]) : '—'} />
+                <Row
+                  label="Outcome"
+                  value={
+                    roundWinner === 'player' ? 'You win'
+                    : roundWinner === 'ai' ? 'You lose'
+                    : 'Tie — into Loot'
+                  }
+                />
+                <small style={{ opacity: 0.8 }}>
+                  {roundWinner === 'tie'
+                    ? `Tie! Both cards moved to the loot zone (${(pending?.loot ?? loot).length} total after this round).`
+                    : `${roundWinner === 'player' ? 'You' : 'AI'} claimed both actives${(pending?.loot?.length ?? 0) ? ' plus all loot' : ''}.`}
+                </small>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+              {phase === 'gameOver'
+                ? <button style={styles.primary} onClick={newGame}>Start New Game</button>
+                : <button style={styles.primary} onClick={commitAndDrawNext}>Continue</button>}
             </div>
           </div>
         </div>
-      </div>
+      )}
+    </main>
+  );
+}
 
-      {/* Notifications log */}
-      <div style={styles.logPanel}>
-        <div style={styles.logTitle}>Notifications</div>
-        <div style={styles.logList}>
-          {log.length === 0 ? (
-            <div style={{ opacity: 0.7 }}>No events yet. Tap <b>Start</b> and interact with the cards.</div>
-          ) : (
-            log
-              .slice()
-              .reverse()
-              .map((n) => <div key={n.id}>• {n.text}</div>)
-          )}
-        </div>
-      </div>
-
-      {/* Toast */}
-      <div style={{ ...(toast ? styles.toast : { ...styles.toast, ...styles.toastHidden }) }}>
-        {toast?.text}
-      </div>
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+      <span style={{ opacity: 0.8 }}>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
+
+/** ===========================
+ *  Card
+ *  =========================== */
+function Card({
+  owner, card, selectable, onSelect, highlight, showBack = false, order,
+  imgW, imgH, gridH,
+}: {
+  owner: 'player' | 'ai';
+  card?: Card;
+  selectable: boolean;
+  onSelect?: (s: StatKey) => void;
+  highlight?: StatKey;
+  showBack?: boolean;
+  order: StatKey[];
+  imgW: number; imgH: number; gridH: number;
+}) {
+  if (!card) {
+    return (
+      <div style={styles.card}>
+        <div style={styles.cardHead}><strong>No Card</strong><span style={{ opacity: 0.6 }}>—</span></div>
+        <div style={styles.badges}/>
+        <div style={styles.body}>
+          {/* Fixed image box dims applied here */}
+          <div style={{ ...styles.imageBox, width: imgW, height: imgH }} />
+          <div style={styles.statGridPlaceholder}>Awaiting draw…</div>
+        </div>
+        <div style={styles.cardFoot}>{owner === 'player' ? 'Your card' : 'AI card'}</div>
+      </div>
+    );
+  }
+
+  if (showBack) {
+    return (
+      <div style={styles.card}>
+        <div style={styles.cardHead}><strong>Face Down</strong><span style={{ opacity: 0.6 }}>&nbsp;</span></div>
+        <div style={styles.badges}/>
+        <div style={styles.body}>
+          <div style={{ ...styles.imageBox, width: imgW, height: imgH }}>
+            <img
+              src={IMG_BACK}
+              alt="Card back"
+              style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', background: '#0f172a' }}
+            />
+          </div>
+          <div style={styles.statGridPlaceholder}>Opponent’s card is hidden until reveal.</div>
+        </div>
+        <div style={styles.cardFoot}>{owner === 'player' ? 'Your card' : 'AI card'}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.card}>
+      <div style={styles.cardHead}>
+        <strong style={styles.name}>{card.name}</strong>
+        <span style={{ opacity: 0.6 }}>#{card.id}</span>
+      </div>
+
+      <div style={styles.badges}>
+        <Badge>{card.faction}</Badge>
+        <Badge>{card.class}</Badge>
+        <Badge>{card.heroType}</Badge>
+        <Badge>{card.attackType}</Badge>
+        <Badge tone={rarityTone(card.rarity)}>{card.rarity}</Badge>
+      </div>
+
+      <div style={styles.body}>
+        {/* Fixed image box dims applied here */}
+        <div style={{ ...styles.imageBox, width: imgW, height: imgH }}>
+          <CardImage name={card.name} id={card.id} src={card.image || imgUrlFor(card.id)} />
+        </div>
+
+        {/* Fixed-height 3×3 grid (stable rows) */}
+        <div
+          style={{
+            ...styles.statGrid,
+            height: gridH,
+            gridTemplateRows: 'repeat(3, 1fr)',
+          }}
+        >
+          {order.map((k) => {
+            const v = card.stats[k] ?? 0;
+            const cell = (
+              <div style={styles.cellContent}>
+                <div style={{ fontWeight: 700 }}>{STAT_LABELS[k]}</div>
+                <div style={{ fontVariantNumeric: 'tabular-nums' }}>{v}</div>
+              </div>
+            );
+
+            return selectable ? (
+              <button
+                key={k}
+                onClick={() => onSelect?.(k)}
+                style={{
+                  ...styles.cellBtn,
+                  outline: highlight === k ? '2px solid #22c55e' : '1px solid #1f2937',
+                }}
+              >
+                {cell}
+              </button>
+            ) : (
+              <div
+                key={k}
+                style={{
+                  ...styles.cell,
+                  outline: highlight === k ? '2px solid #22c55e' : '1px solid #1f2937',
+                }}
+              >
+                {cell}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={styles.cardFoot}>{owner === 'player' ? 'Your card' : 'AI card'}</div>
+    </div>
+  );
+}
+
+function CardImage({ id, name, src }: { id: string; name: string; src: string }) {
+  const warnedRef = React.useRef(false);
+  return (
+    <img
+      src={src}
+      alt={name}
+      style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', background: '#0f172a' }}
+      onError={(e) => {
+        const el = e.currentTarget as HTMLImageElement;
+        if (el.src.includes('/card-back.png')) return;
+        if (!warnedRef.current) {
+          console.warn(`Image missing for id "${id}". Tried: ${src}`);
+          warnedRef.current = true;
+        }
+        el.src = IMG_BACK;
+      }}
+    />
+  );
+}
+
+function Badge({ children, tone = '#374151' }: { children: React.ReactNode; tone?: string }) {
+  return (
+    <span style={{ background: tone, color: 'white', borderRadius: 999, padding: '4px 10px', fontSize: 12, whiteSpace: 'nowrap' }}>
+      {children}
+    </span>
+  );
+}
+function rarityTone(r: Rarity) {
+  switch (r) {
+    case 'Common': return '#6b7280';
+    case 'Uncommon': return '#10b981';
+    case 'Rare': return '#3b82f6';
+    case 'Epic': return '#8b5cf6';
+    case 'Legendary': return '#f59e0b';
+    case 'Mythic': return '#ef4444';
+    default: return '#6b7280';
+  }
+}
+
+/** ===========================
+ *  Styles
+ *  =========================== */
+const styles: Record<string, React.CSSProperties> = {
+  page: {
+    minHeight: '100dvh',
+    display: 'grid',
+    gridTemplateRows: 'auto auto 1fr',
+    background: 'linear-gradient(180deg,#030712,#0b1220)',
+    color: 'white',
+    padding: 12,
+    overflowX: 'hidden',
+    overflowY: 'auto', // ← allow vertical scrolling on mobile
+  },
+  header: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    background: '#0b1220', border: '1px solid #1f2937', borderRadius: 12, padding: 10, marginBottom: 8,
+  },
+  statusRow: {
+    display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8,
+    marginBottom: 8, flexWrap: 'wrap',
+  },
+  pill: {
+    background: '#111827', border: '1px solid #1f2937', padding: '4px 10px', borderRadius: 999, fontSize: 12,
+  } as React.CSSProperties,
+
+  board: {
+    position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 'clamp(12px, 3vw, 28px)',
+    height: 'auto', // ← was 100%; let content define height
+  },
+
+  cardSlot: {
+    flex: '0 0 auto',
+    // width overridden per-render for mobile 100% vs desktop clamp
+    display: 'grid',
+    placeItems: 'center',
+  },
+
+  card: {
+    width: '100%',
+    height: 'auto', // ← was min(82dvh, 720px); allow page to scroll
+    background: '#0b1220',
+    border: '1px solid #374151',
+    borderRadius: 14,
+    boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
+    display: 'grid',
+    gridTemplateRows: 'auto auto 1fr auto',
+  },
+
+  cardHead: {
+    display: 'flex', justifyContent: 'space-between', gap: 8,
+    padding: '8px 10px', borderBottom: '1px solid #1f2937', minHeight: 38,
+  },
+  name: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' },
+
+  badges: {
+    display: 'flex', flexWrap: 'wrap', gap: 6, padding: '6px 10px',
+    borderBottom: '1px solid #1f2937', minHeight: 34,
+  },
+
+  body: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+    padding: '10px 10px',
+    overflow: 'hidden',
+  },
+
+  imageBox: {
+    flex: '0 0 auto',
+    // width/height are set per-render to fixed px; aspectRatio removed for stability
+    background: '#0f172a',
+    border: '1px solid #1f2937',
+    borderRadius: 10,
+    overflow: 'hidden',
+    margin: '0 auto',
+  },
+
+  statGrid: {
+    flex: '0 0 auto',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    // rows set per-render to repeat(3,1fr) with a fixed total height
+    gap: 8,
+  },
+  statGridPlaceholder: {
+    flex: '1 1 0',
+    display: 'grid',
+    placeItems: 'center',
+    opacity: 0.75,
+  },
+
+  cell: {
+    background: '#0f172a',
+    borderRadius: 10,
+    padding: 10,
+    display: 'grid',
+    placeItems: 'center',
+    fontSize: 'clamp(11px, 1.4vw, 14px)',
+  },
+  cellBtn: {
+    background: '#111827',
+    color: 'white',
+    borderRadius: 10,
+    padding: 10,
+    cursor: 'pointer',
+    fontSize: 'clamp(11px, 1.4vw, 14px)',
+  },
+  cellContent: {
+    display: 'grid',
+    gap: 4,
+    textAlign: 'center',
+    lineHeight: 1.1,
+  },
+
+  cardFoot: {
+    padding: '8px 10px',
+    borderTop: '1px solid #1f2937',
+    opacity: 0.75,
+  },
+
+  floatWrap: {
+    position: 'fixed',
+    inset: 0,
+    display: 'grid',
+    alignItems: 'start',
+    justifyItems: 'center',
+    paddingTop: 'clamp(12px, 9vh, 96px)',
+    pointerEvents: 'none',
+    zIndex: 60,
+  },
+  floatPanel: {
+    pointerEvents: 'auto',
+    width: 'min(380px, 86vw)',
+    maxHeight: '70vh',
+    overflow: 'auto',
+    background: 'rgba(17,24,39,0.92)',
+    backdropFilter: 'blur(6px)',
+    color: 'white',
+    borderRadius: 12,
+    padding: 14,
+    border: '1px solid #374151',
+    boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
+  },
+
+  primary: {
+    background: '#22c55e',
+    color: 'black',
+    border: 'none',
+    padding: '10px 14px',
+    borderRadius: 10,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+};
