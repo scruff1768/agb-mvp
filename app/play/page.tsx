@@ -140,6 +140,45 @@ function useIsNarrow(breakpoint = 768) {
 }
 
 /** ===========================
+ *  Persistence (localStorage)
+ *  =========================== */
+const STORAGE_KEY = 'agb.play.v1';
+const SAVE_DEBOUNCE_MS = 250;
+
+type SavedState = {
+  ts: number;
+  allCards: Card[];
+  player: DeckState;
+  ai: DeckState;
+  loot: Card[];
+  phase: Phase;
+  turn: Side;
+  chosenStat: StatKey | null;
+  roundWinner: Side | 'tie' | null;
+  showRoundPanel: boolean;
+};
+
+function saveState(state: SavedState) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (_) {}
+}
+function loadState(): SavedState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as SavedState;
+  } catch {
+    return null;
+  }
+}
+function clearState() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (_) {}
+}
+
+/** ===========================
  *  Page
  *  =========================== */
 type CardsResponseArray = Card[];
@@ -149,9 +188,15 @@ export default function PlayPage() {
   const isNarrow = useIsNarrow(768);
 
   // Fixed, predictable sizes (no layout shift)
-  const IMG_W = isNarrow ? 360 : 420;   // 4:3 image box width
-  const IMG_H = isNarrow ? 270 : 315;   // 4:3 image box height
-  const GRID_H = isNarrow ? 200 : 210;  // fixed total height for stat grid
+  const IMG_W = isNarrow ? 380 : 480;   // 4:3 image box width
+  const IMG_H = isNarrow ? 285 : 360;   // 4:3 image box height
+  const GRID_H = isNarrow ? 210 : 220;  // fixed total height for stat grid
+
+  // Preload the card back once so face-down card appears instantly
+  React.useEffect(() => {
+    const i = new Image();
+    i.src = IMG_BACK;
+  }, []);
 
   // prevent “game over” flash during first fetch
   const [isBooting, setIsBooting] = React.useState(true);
@@ -175,7 +220,57 @@ export default function PlayPage() {
 
   const [showRoundPanel, setShowRoundPanel] = React.useState(false);
 
-  React.useEffect(() => { void bootstrap(); }, []);
+  // Try to resume first; if no save, bootstrap from API
+  React.useEffect(() => {
+    const saved = typeof window !== 'undefined' ? loadState() : null;
+    if (saved) {
+      setAllCards(saved.allCards);
+      setPlayer(saved.player);
+      setAi(saved.ai);
+      setLoot(saved.loot);
+      setPhase(saved.phase);
+      setTurn(saved.turn);
+      setChosenStat(saved.chosenStat);
+      setRoundWinner(saved.roundWinner);
+      setShowRoundPanel(saved.showRoundPanel);
+      setIsBooting(false);
+      return;
+    }
+    void bootstrap();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-save progress
+  React.useEffect(() => {
+    if (isBooting) return;
+    const t = setTimeout(() => {
+      const snapshot: SavedState = {
+        ts: Date.now(),
+        allCards,
+        player,
+        ai,
+        loot,
+        phase,
+        turn,
+        chosenStat,
+        roundWinner,
+        showRoundPanel,
+      };
+      saveState(snapshot);
+    }, SAVE_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+  }, [
+    isBooting,
+    allCards,
+    player,
+    ai,
+    loot,
+    phase,
+    turn,
+    chosenStat,
+    roundWinner,
+    showRoundPanel,
+  ]);
 
   async function bootstrap() {
     try {
@@ -314,7 +409,10 @@ export default function PlayPage() {
     setPhase('awaitingChoice');
   }
 
-  function newGame() { void bootstrap(); }
+  function newGame() {
+    clearState();
+    void bootstrap();
+  }
 
   const pActive = player.active;
   const aActive = ai.active;
@@ -356,7 +454,7 @@ export default function PlayPage() {
         <div
           style={{
             ...styles.cardSlot,
-            width: isNarrow ? '100%' : 'clamp(260px, 38vw, 420px)',
+            width: isNarrow ? '100%' : 'clamp(280px, 40vw, 520px)',
           }}
         >
           <Card
@@ -376,7 +474,7 @@ export default function PlayPage() {
         <div
           style={{
             ...styles.cardSlot,
-            width: isNarrow ? '100%' : 'clamp(260px, 38vw, 420px)',
+            width: isNarrow ? '100%' : 'clamp(280px, 40vw, 520px)',
           }}
         >
           <Card
@@ -491,10 +589,13 @@ function Card({
             <img
               src={IMG_BACK}
               alt="Card back"
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
               style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', background: '#0f172a' }}
             />
           </div>
-          <div style={styles.statGridPlaceholder}>Opponent’s card is hidden until reveal.</div>
+          <div style={{ ...styles.statGridPlaceholder, height: gridH }}>Opponent’s card is hidden until reveal.</div>
         </div>
         <div style={styles.cardFoot}>{owner === 'player' ? 'Your card' : 'AI card'}</div>
       </div>
@@ -519,7 +620,7 @@ function Card({
       <div style={styles.body}>
         {/* Fixed image box dims applied here */}
         <div style={{ ...styles.imageBox, width: imgW, height: imgH }}>
-          <CardImage name={card.name} id={card.id} src={card.image || imgUrlFor(card.id)} />
+          <CardImage name={card.name} id={card.id} src={card.image || imgUrlFor(card.id)} eager />
         </div>
 
         {/* Fixed-height 3×3 grid (stable rows) */}
@@ -570,13 +671,35 @@ function Card({
   );
 }
 
-function CardImage({ id, name, src }: { id: string; name: string; src: string }) {
+function CardImage({
+  id,
+  name,
+  src,
+  eager = false,
+}: {
+  id: string;
+  name: string;
+  src: string;
+  eager?: boolean;
+}) {
   const warnedRef = React.useRef(false);
   return (
     <img
       src={src}
       alt={name}
-      style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', background: '#0f172a' }}
+      width={0}
+      height={0}
+      loading={eager ? 'eager' : 'lazy'}
+      decoding="async"
+      fetchPriority={eager ? 'high' : 'auto'}
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: 'contain',
+        objectPosition: 'center',
+        display: 'block',
+        background: '#0f172a',
+      }}
       onError={(e) => {
         const el = e.currentTarget as HTMLImageElement;
         if (el.src.includes('/card-back.png')) return;
@@ -621,7 +744,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'white',
     padding: 12,
     overflowX: 'hidden',
-    overflowY: 'auto', // ← allow vertical scrolling on mobile
+    overflowY: 'auto',
   },
   header: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -638,22 +761,22 @@ const styles: Record<string, React.CSSProperties> = {
   board: {
     position: 'relative',
     display: 'flex',
-    alignItems: 'center',
+    alignItems: 'flex-start',            // better vertical composition
     justifyContent: 'center',
+    flexWrap: 'wrap',                    // wrap on mid desktop widths
     gap: 'clamp(12px, 3vw, 28px)',
-    height: 'auto', // ← was 100%; let content define height
+    height: 'auto',
   },
 
   cardSlot: {
     flex: '0 0 auto',
-    // width overridden per-render for mobile 100% vs desktop clamp
     display: 'grid',
     placeItems: 'center',
   },
 
   card: {
     width: '100%',
-    height: 'auto', // ← was min(82dvh, 720px); allow page to scroll
+    height: 'auto',
     background: '#0b1220',
     border: '1px solid #374151',
     borderRadius: 14,
@@ -695,7 +818,6 @@ const styles: Record<string, React.CSSProperties> = {
     flex: '0 0 auto',
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
-    // rows set per-render to repeat(3,1fr) with a fixed total height
     gap: 8,
   },
   statGridPlaceholder: {
