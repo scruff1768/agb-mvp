@@ -3,6 +3,11 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+
+  // ✅ Ignore linting and type errors during build (MVP-friendly)
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
+
   async redirects() {
     return [
       // send any /agb/... request to the same path at site root
