@@ -289,7 +289,7 @@ export default function PlayPage() {
         return;
       }
 
-      // ✅ Normalize image to be basePath-aware:
+      // Normalize image to be basePath-aware:
       // - If API gives "/images/0000001C.png", make it "/agb/images/0000001C.png"
       // - If missing, fall back to "/agb/images/<id>.png"
       const normalized = deck.map((c) => {
@@ -627,8 +627,8 @@ function Card({
       <div style={styles.body}>
         {/* Fixed image box dims applied here */}
         <div style={{ ...styles.imageBox, width: imgW, height: imgH }}>
-          {/* use normalized BASE-prefixed path */}
-          <CardImage name={card.name} id={card.id} src={card.image || imgUrlFor(card.id)} eager />
+          {/* always use normalized BASE-prefixed path */}
+          <CardImage name={card.name} id={card.id} src={card.image!} eager />
         </div>
 
         {/* Fixed-height 3×3 grid (stable rows) */}
@@ -786,7 +786,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%',
     height: 'auto',
     background: '#0b1220',
-    border: '1px solid #374151', // ✅ fixed
+    border: '1px solid #374151',
     borderRadius: 14,
     boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
     display: 'grid',
@@ -814,7 +814,6 @@ const styles: Record<string, React.CSSProperties> = {
 
   imageBox: {
     flex: '0 0 auto',
-    // width/height are set per-render to fixed px; aspectRatio removed for stability
     background: '#0f172a',
     border: '1px solid #1f2937',
     borderRadius: 10,
