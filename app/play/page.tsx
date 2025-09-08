@@ -43,7 +43,7 @@ interface Card {
   rarity: Rarity;
   heroType: HeroType;
   attackType: AttackType;
-  image?: string;
+  image?: string; // normalized to a BASE-prefixed path
   stats: CardStats;
 }
 
@@ -188,9 +188,9 @@ export default function PlayPage() {
   const isNarrow = useIsNarrow(768);
 
   // Fixed, predictable sizes (no layout shift)
-  const IMG_W = isNarrow ? 380 : 480;   // 4:3 image box width
-  const IMG_H = isNarrow ? 285 : 360;   // 4:3 image box height
-  const GRID_H = isNarrow ? 210 : 220;  // fixed total height for stat grid
+  const IMG_W = isNarrow ? 380 : 480;
+  const IMG_H = isNarrow ? 285 : 360;
+  const GRID_H = isNarrow ? 210 : 220;
 
   // Preload the card back once so face-down card appears instantly
   React.useEffect(() => {
@@ -289,10 +289,17 @@ export default function PlayPage() {
         return;
       }
 
-      const normalized = deck.map((c) => ({
-        ...c,
-        image: c.image || imgUrlFor(c.id),
-      }));
+      // ✅ Normalize image to be basePath-aware:
+      // - If API gives "/images/0000001C.png", make it "/agb/images/0000001C.png"
+      // - If missing, fall back to "/agb/images/<id>.png"
+      const normalized = deck.map((c) => {
+        const rawImg = c.image ?? '';
+        const src =
+          rawImg
+            ? (rawImg.startsWith('http') ? rawImg : `${BASE}${rawImg}`)
+            : imgUrlFor(c.id);
+        return { ...c, image: src };
+      });
 
       setAllCards(normalized);
       const { player: pDeck, ai: aDeck } = splitDeck(normalized);
@@ -620,6 +627,7 @@ function Card({
       <div style={styles.body}>
         {/* Fixed image box dims applied here */}
         <div style={{ ...styles.imageBox, width: imgW, height: imgH }}>
+          {/* use normalized BASE-prefixed path */}
           <CardImage name={card.name} id={card.id} src={card.image || imgUrlFor(card.id)} eager />
         </div>
 
@@ -631,7 +639,7 @@ function Card({
             gridTemplateRows: 'repeat(3, 1fr)',
           }}
         >
-          {order.map((k) => {
+          {(['hp','prana','focus','stamina','strength','intelligence','defense','speed','power'] as StatKey[]).map((k) => {
             const v = card.stats[k] ?? 0;
             const cell = (
               <div style={styles.cellContent}>
@@ -761,9 +769,9 @@ const styles: Record<string, React.CSSProperties> = {
   board: {
     position: 'relative',
     display: 'flex',
-    alignItems: 'flex-start',            // better vertical composition
+    alignItems: 'flex-start',
     justifyContent: 'center',
-    flexWrap: 'wrap',                    // wrap on mid desktop widths
+    flexWrap: 'wrap',
     gap: 'clamp(12px, 3vw, 28px)',
     height: 'auto',
   },
@@ -778,7 +786,7 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%',
     height: 'auto',
     background: '#0b1220',
-    border: '1px solid #374151',
+    border: '1px solid #374151', // ✅ fixed
     borderRadius: 14,
     boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
     display: 'grid',
