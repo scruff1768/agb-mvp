@@ -1,12 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // All app routes live under /agb (we've already been building like this)
-  basePath: '/agb',
-
+  reactStrictMode: true,
+  swcMinify: true,
+  basePath: "/agb", // everything runs under /agb
   async redirects() {
     return [
-      // Domain root → /agb (landing)
-      { source: '/', destination: '/agb', permanent: false },
+      {
+        source: "/",          // root of the domain
+        destination: "/agb",  // send users into the app
+        permanent: true,
+      },
     ];
   },
 };
