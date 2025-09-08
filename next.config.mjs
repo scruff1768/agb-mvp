@@ -1,15 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
-  swcMinify: true,
-  basePath: "/agb", // everything runs under /agb
+  basePath: '/agb',
   async redirects() {
     return [
-      {
-        source: "/",          // root of the domain
-        destination: "/agb",  // send users into the app
-        permanent: true,
-      },
+      { source: '/', destination: '/agb', permanent: true },
     ];
   },
 };
