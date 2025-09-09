@@ -1,21 +1,21 @@
+// app/hub/page.tsx
 import React from 'react';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createServerComponentClient } from '@/lib/supabase';
 import HubTile from '@/components/HubTile';
 import SignOutBtn from '@/components/SignOutBtn';
 
 const BASE = '/agb'; // only for static assets in /public
 
 export default async function HubPage() {
-  // Server-side guard: if no session, redirect to /login (basePath auto-added)
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = createServerComponentClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (!session) {
-    redirect('/login'); // => /agb/login
+    // basePath is applied automatically -> /agb/login
+    redirect('/login');
   }
 
   return (

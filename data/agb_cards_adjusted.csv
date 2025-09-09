@@ -1,0 +1,55 @@
+id,name,faction,class,rarity,heroType,attackType,hp,prana,focus,stamina,strength,intelligence,defense,speed,power
+00000001,Highlands Stable Boy,Highlanders,Warrior-Fighter,Common,Hero,physical,40,25,29,47,50,25,36,50,58
+00000002,Highlands Stable Master,Highlanders,Warrior-Balanced,Uncommon,Hero,physical,55,30,32,48,48,32,48,52,55
+00000003,Highlands Horseman,Highlanders,Warrior-Fighter,Rare,Hero,physical,48,35,35,57,62,35,44,62,62
+00000004,Highlands Master Horseman,Highlanders,Warrior-Balanced,Epic,Hero,physical,62,40,40,58,58,40,58,62,62
+00000005,Highlands Student,Highlanders,Mage,Common,Hero,magical,29,61,61,25,25,62,25,47,25
+00000006,Highlands Academic,Highlanders,Mage,Uncommon,Hero,magical,32,65,65,30,30,66,30,52,30
+00000007,Highlands Professor,Highlanders,Mage,Rare,Hero,magical,35,69,69,35,35,70,35,57,35
+00000008,Highlands Scholar,Highlanders,Healer,Common,Hero,support,36,59,60,25,25,58,36,36,25
+00000009,Highlands Medic,Highlanders,Healer,Uncommon,Hero,support,40,63,63,30,30,64,40,40,30
+0000000A,Highlands Surgeon,Highlanders,Healer,Rare,Hero,support,44,67,68,35,35,68,44,44,35
+0000000B,Highlands Priest,Highlanders,Healer,Epic,Hero,support,48,72,72,40,40,72,48,48,40
+0000000C,Highlands Pope,Highlanders,Healer,Legendary,Champion,support,52,76,76,45,45,77,52,52,45
+0000000D,Highlands Slinger,Highlanders,Sharpshooter,Common,Hero,physical,29,32,58,32,36,36,27,70,40
+0000000E,Highlands Archer,Highlanders,Sharpshooter,Uncommon,Hero,physical,32,36,64,36,40,40,30,78,44
+0000000F,Highlands Hitman,Highlanders,Sharpshooter-Power,Rare,Hero,physical,35,40,61,40,48,40,35,75,66
+00000010,Highlands Spy,Highlanders,Sharpshooter-Speed,Epic,Hero,physical,41,43,82,40,43,48,40,90,53
+00000021,Highlands Commander,Highlanders,Warrior-Balanced,Legendary,Champion,physical,66,45,45,62,62,45,62,66,67
+00000022,Highlands Mentalist,Highlanders,Mage,Legendary,Champion,magical,45,75,76,45,45,76,45,68,45
+00000023,Highlands Forrester,Highlanders,Sharpshooter,Legendary,Champion,physical,45,47,83,47,52,52,45,92,57
+00000024,Heathcliff - King of the Highlands,Highlanders,Warrior-Balanced,Mythic,Guardian,physical,84,50,50,56,56,50,56,73,85
+00000025,Doogen Howzit - Chief Doctor of the Highlands,Highlanders,Healer,Mythic,Guardian,support,56,82,83,50,50,83,50,56,50
+00000026,Elijah Forester - The High Priest,Highlanders,Healer,Mythic,Guardian,support,56,82,83,50,50,83,50,56,50
+00000027,Supreme Knight of the Highlands - Sir Caerlon Saddler,Highlanders,Warrior-Tank,Mythic,Guardian,physical,84,50,50,56,73,50,85,62,50
+00000028,Brick Ironshoe Davidson - The Grand Equestrian of the Highlands,Highlanders,Warrior-Balanced,Mythic,Guardian,physical,77,50,50,77,56,50,56,77,67
+00000029,Edward McCallister - Dean of the Highlands,Highlanders,Mage,Mythic,Guardian,magical,50,79,79,50,50,79,50,73,50
+0000002A,Marshall Westborough - Scout of the Highlands,Highlanders,Sharpshooter-Speed,Mythic,Guardian,physical,53,53,95,52,52,56,52,95,52
+0000002B,Unknown of the Highlands,Highlanders,Balanced,Mythic,Guardian,physical,75,67,75,50,50,67,50,76,50
+00000011,Skeleton Remains of the Crypt,Keepers,Warrior-Tank,Common,Hero,physical,53,25,25,53,50,25,53,25,51
+00000012,Bone Marrow of the Crypt,Keepers,Warrior-Tank,Uncommon,Hero,physical,56,30,30,56,56,30,56,30,56
+00000013,Bone Soldier of the Crypt,Keepers,Warrior-Balanced,Rare,Hero,physical,59,35,35,59,59,35,59,40,59
+00000014,Bone General of the Crypt,Keepers,Warrior-Tank,Epic,Hero,physical,64,40,40,64,64,40,64,40,64
+00000015,Skeleton Occultist of the Crypt,Keepers,Mage,Common,Hero,magical,36,58,50,36,25,58,36,32,29
+00000016,Bone Lich of the Crypt,Keepers,Mage,Uncommon,Hero,magical,40,63,56,40,30,63,40,36,32
+00000017,Cabalist of the Crypt,Keepers,Mage,Rare,Hero,magical,44,68,62,44,35,68,44,40,35
+00000018,Necromancer of the Crypt,Keepers,Mage,Epic,Hero,magical,48,73,67,48,40,73,48,43,40
+00000019,Apparition of the Crypt,Keepers,Support,Common,Hero,support,36,54,54,36,25,50,40,40,25
+0000001A,Poltergeist of the Crypt,Keepers,Support,Uncommon,Hero,support,40,58,58,40,30,56,44,44,30
+0000001B,Banshee of the Crypt,Keepers,Support,Rare,Hero,support,44,62,62,44,35,62,48,48,35
+0000001C,Tainted of the Crypt,Keepers,Sharpshooter,Common,Hero,physical,36,25,43,47,50,25,32,55,47
+0000001D,Vampire of the Crypt,Keepers,Sharpshooter,Uncommon,Hero,physical,40,30,48,52,56,30,36,56,52
+0000001E,Vampire Lord of the Crypt,Keepers,Sharpshooter-Power,Rare,Hero,physical,44,35,44,57,61,35,40,62,62
+0000001F,Werewolf of the Crypt,Keepers,Sharpshooter,Uncommon,Hero,physical,40,30,48,52,56,30,36,56,52
+00000020,Lycanthrope of the Crypt,Keepers,Sharpshooter-Strength,Rare,Hero,physical,48,35,44,59,59,35,40,60,60
+0000002C,Skeleton Prince of the Crypt,Keepers,Warrior-Tank,Legendary,Champion,physical,68,45,45,68,68,45,68,45,68
+0000002D,Skull Magician of the Crypt,Keepers,Mage,Legendary,Champion,magical,52,77,73,52,45,77,52,47,45
+0000002E,Bone Archer of the Crypt,Keepers,Sharpshooter,Legendary,Champion,physical,52,45,62,67,67,45,47,67,68
+0000002F,Charles Jameson - Skeleton King of the Crypt,Keepers,Warrior-Balanced,Mythic,Guardian,physical,72,50,50,72,72,50,72,50,72
+00000030,Furusiyya – The Bone General of the Crypt,Keepers,Warrior-Fighter,Mythic,Guardian,physical,72,50,50,72,72,50,72,50,72
+00000031,Mekubbal – The Skeletal Cabalist of the Crypt,Keepers,Mage,Mythic,Guardian,magical,56,73,84,56,50,85,56,50,50
+00000032,Soriben – The Skeletal Necromancer of the Crypt,Keepers,Mage,Mythic,Guardian,magical,56,84,85,56,50,73,56,50,50
+00000033,Bram – Vampire Lord of the Crypt,Keepers,Sharpshooter-Power,Mythic,Guardian,physical,56,50,50,73,77,50,50,77,77
+00000034,Jay Cub – The Frenzied Lycanthrope of the Crypt,Keepers,Sharpshooter-Strength,Mythic,Guardian,physical,62,50,50,74,74,50,51,74,75
+00000035,Caroline McNancy – The Hallowed Banshee of the Crypt,Keepers,Support,Mythic,Guardian,support,56,67,79,56,50,62,62,78,50
+00000036,Simon Peter - The Exalted Reborn of the Crypt,Keepers,Mage,Mythic,Guardian,magical,56,79,67,56,50,84,56,50,62
