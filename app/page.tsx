@@ -1,14 +1,10 @@
+// app/page.tsx
+"use client";
+
 import Link from "next/link";
-import { cookies } from "next/headers";
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
 
-export default async function LandingPage() {
-  const supabase = createServerComponentClient({ cookies });
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const isLoggedIn = Boolean(session);
+export default function LandingPage() {
+  const year = new Date().getFullYear();
 
   return (
     <main
@@ -38,7 +34,7 @@ export default async function LandingPage() {
           Pathways of Amica.
         </p>
 
-        {/* Actions */}
+        {/* Single action for the public playtest */}
         <div
           style={{
             marginTop: 20,
@@ -47,56 +43,19 @@ export default async function LandingPage() {
             flexWrap: "wrap",
           }}
         >
-          {!isLoggedIn ? (
-            <>
-              {/* Login goes to the dedicated login page (Google + magic link) */}
-              <Link
-                href="/login"
-                style={{
-                  padding: "0.75rem 1rem",
-                  borderRadius: 10,
-                  border: "1px solid #444",
-                  display: "inline-block",
-                  background: "#222",
-                  color: "white",
-                  textDecoration: "none",
-                }}
-              >
-                Sign in to play
-              </Link>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/hub"
-                style={{
-                  padding: "0.75rem 1rem",
-                  borderRadius: 10,
-                  border: "1px solid #444",
-                  display: "inline-block",
-                  background: "#222",
-                  color: "white",
-                  textDecoration: "none",
-                }}
-              >
-                Continue to hub
-              </Link>
-              <Link
-                href="/login"
-                style={{
-                  padding: "0.75rem 1rem",
-                  borderRadius: 10,
-                  border: "1px solid #444",
-                  display: "inline-block",
-                  background: "#333",
-                  color: "white",
-                  textDecoration: "none",
-                }}
-              >
-                Switch account
-              </Link>
-            </>
-          )}
+          <Link
+            href="/hub"
+            style={{
+              padding: "0.75rem 1rem",
+              borderRadius: 10,
+              display: "inline-block",
+              background: "#2563eb",
+              color: "white",
+              textDecoration: "none",
+            }}
+          >
+            Enter Hub
+          </Link>
         </div>
 
         {/* Feature list */}
@@ -105,10 +64,10 @@ export default async function LandingPage() {
           <li>🧩 Deck Builder: craft up to 5 loadouts</li>
           <li>🗄️ Archive: browse your collection</li>
           <li>💎 Treasure Vault: open, earn, upgrade</li>
-          <li>🏆 Hall of Glory: milestones & trophies</li>
+          <li>🏆 Hall of Glory: milestones &amp; trophies</li>
         </ul>
 
-        {/* Footer links row */}
+        {/* Footer links row (kept as-is) */}
         <div
           style={{
             marginTop: 24,
@@ -126,7 +85,7 @@ export default async function LandingPage() {
           </Link>
           <span style={{ opacity: 0.3 }}>•</span>
           <Link href="/legal/terms" style={{ color: "inherit" }}>
-            Terms & Conditions
+            Terms &amp; Conditions
           </Link>
           <span style={{ opacity: 0.3 }}>•</span>
           <Link href="/legal/privacy" style={{ color: "inherit" }}>
@@ -142,11 +101,9 @@ export default async function LandingPage() {
           </Link>
           <span style={{ opacity: 0.3 }}>•</span>
           <Link href="/legal/ip" style={{ color: "inherit" }}>
-            Copyright & IP Policy
+            Copyright &amp; IP Policy
           </Link>
-          <div style={{ marginLeft: "auto", opacity: 0.6 }}>
-            © {new Date().getFullYear()} Amica AGB
-          </div>
+          <div style={{ marginLeft: "auto", opacity: 0.6 }}>© {year} Amica AGB</div>
         </div>
       </div>
     </main>

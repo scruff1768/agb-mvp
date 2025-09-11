@@ -1,33 +1,16 @@
 // app/hub/page.tsx
-import React from 'react';
-import { redirect } from 'next/navigation';
-import { createServerComponentClient } from '@/lib/supabase';
-import HubTile from '@/components/HubTile';
-import SignOutBtn from '@/components/SignOutBtn';
+import React from "react";
+import HubTile from "@/components/HubTile";
 
-const BASE = '/agb'; // only for static assets in /public
+const BASE = "/agb"; // only for static assets in /public
 
-export default async function HubPage() {
-  const supabase = createServerComponentClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
-    // basePath is applied automatically -> /agb/login
-    redirect('/login');
-  }
-
+export default function HubPage() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
       <header className="mb-8 flex items-center justify-between">
         <div className="text-center sm:text-left">
           <h1 className="text-3xl font-bold text-white">Amica Hub</h1>
           <p className="mt-1 text-slate-300">Choose where you’d like to go.</p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <SignOutBtn />
         </div>
       </header>
 

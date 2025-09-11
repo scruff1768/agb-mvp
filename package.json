@@ -6,7 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+
+    "data:csv": "python scripts/agb_build_csv.py",
+    "data:json": "node scripts/convert-csv-to-json.mjs",
+    "data:build": "npm run data:csv && npm run data:json",
+
+    "vercel-deploy": "vercel --prod --yes",
+
+    "playtest": "npm run data:build && npm run vercel-deploy"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.10.0",

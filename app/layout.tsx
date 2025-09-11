@@ -1,19 +1,30 @@
-import type { Metadata } from 'next';
-import './globals.css';
-import { Inter } from 'next/font/google';
-
-const inter = Inter({ subsets: ['latin'] });
+// app/layout.tsx
+import type { Metadata } from "next";
+import { SupabaseProvider } from "@/lib/supabase-browser";
 
 export const metadata: Metadata = {
-  title: 'Amica Guardian Battles',
-  description: 'Build decks. Battle. Rise through the ranks.',
-  icons: { icon: '/favicon.ico' },
+  title: "Amica Guardian Battles",
+  description: "Build decks, duel, and climb the Pathways of Amica.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <body
+        style={{
+          margin: 0,
+          background: "#0b0f16",
+          color: "white",
+          fontFamily:
+            "-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+        }}
+      >
+        <SupabaseProvider>{children}</SupabaseProvider>
+      </body>
     </html>
   );
 }

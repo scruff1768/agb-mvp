@@ -1,9 +1,11 @@
-'use client';
+// app/battle/page.tsx
+"use client";
 
-import React from 'react';
-import HubTile from '@/components/HubTile';
+import React from "react";
+import Link from "next/link";
+import HubTile from "@/components/HubTile";
 
-const BASE = '/agb'; // must match next.config.ts basePath
+const BASE = "/agb"; // only for static assets in /public
 const IMG = (file: string) => `${BASE}/images/${file}`;
 
 export default function BattlePicker() {
@@ -16,34 +18,34 @@ export default function BattlePicker() {
             Pick a mode to begin. You can fine-tune matchmaking rules later.
           </p>
         </div>
-        <a
-          href={`${BASE}/hub`}
+        <Link
+          href="/hub"
           className="rounded-lg border border-slate-700/60 px-3 py-2 text-sm text-slate-200 hover:bg-slate-800"
         >
           ← Back to Hub
-        </a>
+        </Link>
       </header>
 
       <section className="flex flex-wrap justify-center gap-8">
         <HubTile
           title="vs AI (Unranked)"
           subtitle="Quick match against an AI opponent"
-          href={`${BASE}/play`} // ready today
-          imageUrl={IMG('pvsai.png')}
+          href="/play" // ready today
+          imageUrl={IMG("pvsai.png")}
         />
 
         <HubTile
           title="vs Player (Unranked)"
           subtitle="Invite a friend or find a casual match"
-          href={`${BASE}/battle/pvp`} // Coming Soon page
-          imageUrl={IMG('pvp.png')}
+          href="/battle/pvp" // Coming Soon page
+          imageUrl={IMG("pvp.png")}
         />
 
         <HubTile
           title="Ranked"
           subtitle="Competitive ladder with MMR"
-          href={`${BASE}/battle/ranked`} // Coming Soon page
-          imageUrl={IMG('ranked.png')}
+          href="/battle/ranked" // Coming Soon page
+          imageUrl={IMG("ranked.png")}
         />
       </section>
     </main>
